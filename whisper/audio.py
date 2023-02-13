@@ -72,6 +72,34 @@ def pad_or_trim(array, length: int = N_SAMPLES, *, axis: int = -1):
 
     return array
 
+def pad_or_trim_with_startpos(array, *, startpos: int = 0, duration: int = N_SAMPLES, audio_shape_length: int = N_SAMPLES, axis: int = -1):
+    """
+    Same as the |pad_or_trim| function but with configuration start point and desired duration fo the audio sample to read.
+    """
+    axis = -1
+    # If startpos + duration is more than length of array, just take until the end.
+    if array.shape[axis] < startpos + duration:
+        duration = array.shape[axis] - startpos 
+        
+    if torch.is_tensor(array):
+        if duration >= audio_shape_length:
+            array = array.index_select(dim=axis, index=torch.arange(startpos, audio_shape_length, device=array.device))
+        if duration < audio_shape_length:
+            array = array.index_select(dim=axis, index=torch.arange(startpos, startpos+duration, device=array.device))
+            pad_widths = [(0, 0)] * array.ndim
+            pad_widths[axis] = (0, audio_shape_length - duration)
+            array = F.pad(array, [pad for sizes in pad_widths[::-1] for pad in sizes])
+    else:
+        if duration >= audio_shape_length:
+            array = array.take(indices=range(startpos, startpos+audio_shape_length), axis=axis)
+
+        if duration < audio_shape_length:
+            array = array.take(indices=range(startpos, startpos+duration), axis=axis)
+            pad_widths = [(0, 0)] * array.ndim
+            pad_widths[axis] = (0, audio_shape_length - duration)
+            array = np.pad(array, pad_widths)
+            
+    return array
 
 @lru_cache(maxsize=None)
 def mel_filters(device, n_mels: int = N_MELS) -> torch.Tensor:
