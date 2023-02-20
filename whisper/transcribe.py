@@ -95,8 +95,8 @@ def transcribe(
     mel = log_mel_spectrogram(audio)
 
     if (duration_seconds > 0):
-        start_frame = exact_div(start_second * SAMPLE_RATE, HOP_LENGTH)
-        duration_frames = exact_div(duration_seconds * SAMPLE_RATE, HOP_LENGTH)
+        start_frame = int(start_second * SAMPLE_RATE / HOP_LENGTH)
+        duration_frames = int(duration_seconds * SAMPLE_RATE / HOP_LENGTH)
         mel = pad_or_trim_with_startpos(log_mel_spectrogram(
             audio), startpos=start_frame, duration=duration_frames, audio_shape_length=N_FRAMES)
 
@@ -280,7 +280,7 @@ def transcribe(
 
 
 
-# Just returns the language detection result for custom start point and duration given an audio file.
+# Returns a (lang, probability) tuple for custom start point and duration given an audio file.
 def detect_language_custom(
     model: "Whisper",
     audio: Union[str, np.ndarray, torch.Tensor],
@@ -288,17 +288,17 @@ def detect_language_custom(
     start_second: Optional[float] = 0.0,
     detection_duration_seconds: float = 30.0,
 ):
-    dtype = torch.float16
+    dtype = torch.float32 if model.device == torch.device("cpu") else torch.float16
     mel = log_mel_spectrogram(audio)
-    start_frame = exact_div(start_second * SAMPLE_RATE, HOP_LENGTH)
-    duration_frames = exact_div(
-        detection_duration_seconds * SAMPLE_RATE, HOP_LENGTH)
+    start_frame = int(start_second * SAMPLE_RATE / HOP_LENGTH)
+    duration_frames = int(
+        detection_duration_seconds * SAMPLE_RATE / HOP_LENGTH)
     segment = pad_or_trim_with_startpos(
         mel, startpos=start_frame, duration=duration_frames, audio_shape_length=N_FRAMES).to(model.device).to(dtype)
     _, probs = model.detect_language(segment)
     language = max(probs, key=probs.get)
 
-    return language
+    return language, probs[language]
 
 
 def cli():
