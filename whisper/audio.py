@@ -82,6 +82,10 @@ def pad_or_trim_with_startpos(array, *, startpos: int = 0, duration: int = N_SAM
         duration = array.shape[axis] - startpos 
         
     if torch.is_tensor(array):
+        if duration >= audio_shape_length:
+            array = array.index_select(dim=axis, index=torch.arange(
+                startpos, startpos+audio_shape_length, device=array.device))
+        if duration < audio_shape_length:
             array = array.index_select(dim=axis, index=torch.arange(startpos, startpos+duration, device=array.device))
             pad_widths = [(0, 0)] * array.ndim
             pad_widths[axis] = (0, audio_shape_length - duration)
